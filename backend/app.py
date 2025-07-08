@@ -66,8 +66,11 @@ class LogoutResource(Resource):
         return response
 
 class UserInfo(Resource):
-     @jwt_required()
-     def get(self):
+        @jwt_required()
+        def get(self):
+
+            current_user = get_jwt_identity()
+            print(current_user['role'])
             users = User.query.all()
             user_info = [{
                 'id': user.id,
@@ -78,6 +81,67 @@ class UserInfo(Resource):
             return user_info
 
 
+class CategoryResource(Resource):
+    @jwt_required()
+    def get(self):
+        role = get_jwt_identity()['role']
+        if role != 'admin':
+            return make_response(jsonify({'message': 'Unauthorized access'}), 403)
+        categories  = Category.query.all()
+        category_list = [{'id': category.id, 'name': category.name} for category in categories]
+
+        return jsonify(category_list)
+    
+    @jwt_required()
+    def post(self):
+            role = get_jwt_identity()['role']
+            if role != 'admin':
+                return make_response(jsonify({'message': 'Unauthorized access'}), 403)
+         
+            parser = reqparse.RequestParser()
+            parser.add_argument('name', type=str,required=True)
+            args = parser.parse_args()
+
+            if Category.query.filter_by(name=args['name']).first():
+               return make_response(jsonify({'message': 'Category already exists'}), 400)
+
+            new_category = Category(name=args['name'])
+
+            db.session.add(new_category)
+            db.session.commit()
+
+            return make_response(jsonify({'message': 'Category created successfully'}), 201)
+
+    @jwt_required()
+    def put(self):
+            parser = reqparse.RequestParser()
+            parser.add_argument('id', type=int, required=True)
+            parser.add_argument('name', type=str, required=True)
+            args = parser.parse_args()
+
+            category = Category.query.get(args['id'])
+            if not category:
+                    return make_response(jsonify({'message': 'Category not found'}), 404)
+
+            category.name = args['name']
+            db.session.commit()
+            return make_response(jsonify({'message': 'Category updated successfully'}), 200)
+    
+    @jwt_required()
+    def delete(self):
+            parser = reqparse.RequestParser()
+            parser.add_argument('id', type=int, required=True)
+            args = parser.parse_args()
+
+            category = Category.query.get(args['id'])
+            if not category:
+                return make_response(jsonify({'message': 'Category not found'}), 404)
+
+            db.session.delete(category)
+            db.session.commit()
+            return make_response(jsonify({'message': 'Category deleted successfully'}), 200)
+
+api.add_resource(CategoryResource, '/categories')
 api.add_resource(SignupResource, '/signup')
 api.add_resource(LoginResource, '/login')
 api.add_resource(LogoutResource, '/logout')
