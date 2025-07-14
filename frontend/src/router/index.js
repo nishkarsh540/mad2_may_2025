@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue'
 import UserSignup from '../auth/UserSignup.vue'
 import UserLogin from '../auth/UserLogin.vue'
 import CategoryManage from '@/components/CategoryManage.vue'
+import AdminDashboard from '@/components/AdminDashboard.vue'
 const routes = [
   {
     path: '/',
@@ -15,6 +16,11 @@ const routes = [
     component: UserSignup
   },
   {
+    path: '/admin_dashboard',
+    name: 'admin',
+    component: AdminDashboard
+  },
+  {
     path: '/login',
     name: 'login',
     component: UserLogin
@@ -23,7 +29,7 @@ const routes = [
     path: '/manage_cat',
     name: 'Manage Category',
     component: CategoryManage,
-    meta: { isAdmin: true }
+    // meta: { isAdmin: true }
   },
   {
     path: '/about',
@@ -32,7 +38,7 @@ const routes = [
     // this generates a separate chunk (about.[hash].js) for this route
     // which is lazy-loaded when the route is visited.
     component: () => import(/* webpackChunkName: "about" */ '../views/AboutView.vue'),
-    meta: { isAdmin: true}
+    // meta: { isAdmin: true}
   }
 ]
 
@@ -41,14 +47,14 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to,from,next) =>{
-  const userRole = JSON.parse(localStorage.getItem('user')).role || 'guest'
-  if (to.meta.isAdmin && userRole !== 'admin') {
-    next({path: '/login', query: {unauthorized: true}});
-  } else {
-    next();
-  }
-})
+// router.beforeEach((to,from,next) =>{
+//   const userRole = JSON.parse(localStorage.getItem('user')).role || ''
+//   if (to.meta.isAdmin && userRole !== 'admin') {
+//     next({path: '/login', query: {unauthorized: true}});
+//   } else {
+//     next();
+//   }
+// })
 
 
 export default router

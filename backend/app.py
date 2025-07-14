@@ -4,12 +4,22 @@ from flask_jwt_extended import JWTManager, jwt_required, create_access_token,get
 from flask_cors import CORS
 from model import db,User,Product,Category
 from werkzeug.security import generate_password_hash, check_password_hash
+from celery_config import celery
+import redis
+from flask_caching import Cache
 app = Flask(__name__)
+
+redis_client = redis.Redis(host='localhost', port = 6379, db=0)
+cache = Cache(app,config = {
+     'CACHE_TYPE': 'redis',
+     'CACHE_REDIS': redis_client
+})
+
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///vehicle.sqlite'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'grocery'
-
+celery.conf.update(app.config)
 db.init_app(app)
 CORS(app,origins='*')
 
@@ -66,11 +76,12 @@ class LogoutResource(Resource):
         return response
 
 class UserInfo(Resource):
-        @jwt_required()
+        @cache.cached(timeout=10)
+        
         def get(self):
 
-            current_user = get_jwt_identity()
-            print(current_user['role'])
+            # current_user = get_jwt_identity()
+            # print(current_user['role'])
             users = User.query.all()
             user_info = [{
                 'id': user.id,
@@ -79,6 +90,23 @@ class UserInfo(Resource):
             } for user in users]
 
             return user_info
+
+class ExportResource(Resource):
+     @jwt_required()
+     def post(self):
+          try:
+               from tasks import export_categories_details_as_csv
+               print('function called')
+               csv_data = export_categories_details_as_csv()
+               print(csv_data)
+               response = make_response(csv_data)
+               response.headers['Content-Disposition'] = 'attachment; filename=category_report.csv'
+
+               response.headers['Content-Type'] = 'text/csv'
+
+               return response
+          except Exception as e:
+               return make_response(jsonify({'message': 'Error exporting data', 'error': str(e)}), 500)
 
 
 class CategoryResource(Resource):
@@ -146,6 +174,7 @@ api.add_resource(SignupResource, '/signup')
 api.add_resource(LoginResource, '/login')
 api.add_resource(LogoutResource, '/logout')
 api.add_resource(UserInfo, '/user_info')
+api.add_resource(ExportResource, '/export_categories')
 # 400 -- error, 200 -- success, 201 -- created, 401 -- unauthorized, 403 -- forbidden, 404 -- not found
 
 if __name__ == '__main__':
