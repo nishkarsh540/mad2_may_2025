@@ -4,7 +4,7 @@ from flask_jwt_extended import JWTManager, jwt_required, create_access_token,get
 from flask_cors import CORS
 from model import db,User,Product,Category
 from werkzeug.security import generate_password_hash, check_password_hash
-from celery_config import celery
+#  from celery_config import celery
 import redis
 from flask_caching import Cache
 app = Flask(__name__)
@@ -19,7 +19,7 @@ cache = Cache(app,config = {
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///vehicle.sqlite'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'grocery'
-celery.conf.update(app.config)
+#  celery.conf.update(app.config)
 db.init_app(app)
 CORS(app,origins='*')
 
@@ -75,9 +75,17 @@ class LogoutResource(Resource):
         unset_jwt_cookies(response)
         return response
 
+
+class StatResource(Resource):
+     def get(self):
+            roles_count = db.session.query(User.role,db.func.count(User.id)).group_by(User.role).all()
+
+            role_stats = {role: count for role, count in roles_count}
+            return jsonify(role_stats)
+
 class UserInfo(Resource):
-        @cache.cached(timeout=10)
-        
+        #  @cache.cached(timeout=10)
+        @jwt_required()
         def get(self):
 
             # current_user = get_jwt_identity()
@@ -175,6 +183,7 @@ api.add_resource(LoginResource, '/login')
 api.add_resource(LogoutResource, '/logout')
 api.add_resource(UserInfo, '/user_info')
 api.add_resource(ExportResource, '/export_categories')
+api.add_resource(StatResource, '/stat')
 # 400 -- error, 200 -- success, 201 -- created, 401 -- unauthorized, 403 -- forbidden, 404 -- not found
 
 if __name__ == '__main__':
